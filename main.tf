@@ -1,26 +1,91 @@
 provider "aws" {
-  region = local.region
+  region = var.aws_region
 }
 
-data "aws_availability_zones" "available" {}
+data "aws_availability_zones" "available" {
+    state = "available"
+}
 
 locals {
-  region = "eu-west-2"
-  name = "test-${basename(path.cwd)}"
-
-  vpc_cidr_range = "10.0.0.0/16"
+  name = "${basename(path.cwd)}-${var.app_name}"
   availability_zones = slice(data.aws_availability_zones.available.names, 0, 3)
   
   container_name = "bfielder-container-test"
   container_port = 3000
 }
 
+module "vpc" {
+  source = "terraform-aws-modules/vpc/aws"
+  version = "6.0.1"
+
+  cidr = "10.0.0.0/16"
+  name = "bfielder-test-vpc"
+
+  azs = ["eu-west-2a", "eu-west-2b", "eu-west-2c"]
+  private_subnets = ["10.0.1.0/24", "10.0.2.0/24"]
+  public_subnets = ["10.0.0.0/24"]
+
+  enable_nat_gateway = true
+  enable_dns_hostnames = true
+
+}
+
+
+
+#Load balancer
+module "alb" {
+  depends_on = [module.vpc]
+  source = "terraform-aws-modules/alb/aws"
+  version = "9.17.0"
+
+  name = "bfielder-alb-test"
+  vpc_id = module.vpc.vpc_id
+  subnets = [module.vpc.private_subnets[0], module.vpc.public_subnets[0]] #Needs rethinking 
+  target_groups = {
+      bfielder-instance = {
+      target_id        = ""
+      name_prefix      = "h1"
+      protocol         = "HTTP"
+      port             = 80
+      target_type      = "ip"
+    }
+  }
+
+  security_group_ingress_rules = {
+    all_http = {
+      from_port   = 80
+      to_port     = 80
+      ip_protocol = "tcp"
+      description = "HTTP web traffic"
+      cidr_ipv4   = "0.0.0.0/0"
+    }
+    all_https = {
+      from_port   = 443
+      to_port     = 443
+      ip_protocol = "tcp"
+      description = "HTTPS web traffic"
+      cidr_ipv4   = "0.0.0.0/0"
+    }
+  }
+  security_group_egress_rules = {
+    all = {
+      ip_protocol = "-1"
+      cidr_ipv4   = "10.0.0.0/16"
+    }
+  }
+
+
+}
+
+#Security Group
+
+
 module "ecs" {
   source = "terraform-aws-modules/ecs/aws"
   
   version = "6.3.0"
 
-  cluster_name = "ecs-integrated"
+  cluster_name = "ecs-test-cluster-bfielder"
 
   cluster_configuration = {
     execute_command_configuration = {
@@ -31,7 +96,6 @@ module "ecs" {
     }
   }
 
-  # Cluster capacity providers
   default_capacity_provider_strategy = {
     FARGATE = {
       weight = 50
@@ -47,7 +111,6 @@ module "ecs" {
       cpu    = 1024
       memory = 4096
 
-      # Container definition(s)
       container_definitions = {
 
         fluent-bit = {
@@ -97,7 +160,7 @@ module "ecs" {
       }
 
       service_connect_configuration = {
-        namespace = "example"
+        namespace = "bfielder-test-example"
         service = [{
           client_alias = {
             port     = 80
@@ -110,13 +173,13 @@ module "ecs" {
 
       load_balancer = {
         service = {
-          target_group_arn = "arn:aws:elasticloadbalancing:eu-west-1:1234567890:targetgroup/bluegreentarget1/209a844cd01825a4"
+          target_group_arn = module.alb.target_groups["bfielder-instance"].arn
           container_name   = "bfielder-ecs-test-lb"
           container_port   = 80
         }
       }
 
-      subnet_ids = ["subnet-abcde012", "subnet-bcde012a", "subnet-fghi345a"]
+      subnet_ids = module.vpc.private_subnets
       security_group_ingress_rules = {
         alb_3000 = {
           description                  = "Service port"
@@ -135,7 +198,7 @@ module "ecs" {
   }
 
   tags = {
-    Environment = "Development"
+    Environment = "Dev"
     Project     = "Example"
   }
 }
