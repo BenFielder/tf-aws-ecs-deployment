@@ -40,7 +40,7 @@ module "alb" {
 
   name = "bfielder-alb-test"
   vpc_id = module.vpc.vpc_id
-  subnets = [module.vpc.public_subnets[0], module.vpc.public_subnets[1]] #Needs rethinking 
+  subnets = module.vpc.public_subnets
   target_groups = {
       bfielder-instance = {
       name_prefix      = "h1"
