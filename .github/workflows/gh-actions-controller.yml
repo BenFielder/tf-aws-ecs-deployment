@@ -21,11 +21,11 @@ on:
         default: false
 
 jobs:
-  update:
+  update-workflows:
     runs-on: ubuntu-latest
     steps:
       - name: Update workflows
-        uses: BenFielder/github-actions-controller@main
+        uses: BenFielder/github-actions-controller@v1.15.0
         with:
           pull_testing_workflows: ${{ inputs.testing_workflows }}
           pull_linting_workflows: ${{ inputs.linting_workflows }}
