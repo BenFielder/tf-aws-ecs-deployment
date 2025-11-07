@@ -1,0 +1,33 @@
+name: Github Actions Controller
+
+on:
+  workflow_dispatch:
+    inputs:
+      testing_workflows:
+        description: 'Pull testing workflows'
+        type: boolean
+        default: false
+      linting_workflows:
+        description: 'Pull linting workflows'
+        type: boolean
+        default: false
+      building_workflows:
+        description: 'Pull build workflows'
+        type: boolean
+        default: false
+      deployment_workflows:
+        description: 'Pull deployment workflows'
+        type: boolean
+        default: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Update workflows
+        uses: BenFielder/github-actions-controller@main
+        with:
+          pull_testing_workflows: ${{ inputs.testing_workflows }}
+          pull_linting_workflows: ${{ inputs.linting_workflows }}
+          pull_build_workflows: ${{ inputs.building_workflows }}
+          pull_deployment_workflows: ${{ inputs.deployment_workflows }}
