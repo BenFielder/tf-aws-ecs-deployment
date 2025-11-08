@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Pull workflows from controller
-        uses: BenFielder/github-actions-controller@v1.17.0
+        uses: BenFielder/github-actions-controller@v1.18.0
         with:
           pull_testing_workflows: ${{ inputs.pull_testing }}
           pull_linting_workflows: ${{ inputs.pull_linting }}
