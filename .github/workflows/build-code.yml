@@ -1,0 +1,19 @@
+    deployment:
+    on: push
+    permissions:
+    contents: read
+    actions: read
+    checks: write
+    jobs:
+      build-code:
+      needs: testing
+      runs-on: ubuntu-latest
+      steps:
+          - name: Checkout code
+            uses: actions/checkout@v4
+          - name: Install dependencies
+            run: npm ci
+          - name: Build code
+            run: npm run build
+          - name: Deploy code
+            run: echo "Deploying code..."
